@@ -23,18 +23,21 @@ class StackageSession(object):
         if force and file_path.is_file():
             file_path.unlink()
         if file_path.is_file():
-            print('{} exists, skipping'.format(file_path), flush=True)
+            print(f'{file_path} exists, skipping', flush=True)
         else:
             args = [
-                'aria2c', url, '--dir={}'.format(
-                    dir_path), '--out={}.tmp'.format(url.split('/')[-1]),
-                '--file-allocation=none', '--quiet=true'
+                'aria2c',
+                url,
+                f'--dir={dir_path}',
+                f"--out={url.split('/')[-1]}.tmp",
+                '--file-allocation=none',
+                '--quiet=true',
             ]
             if sha1:
-                args.append('--checksum=sha-1={}'.format(sha1))
+                args.append(f'--checksum=sha-1={sha1}')
             subprocess.run(args, check=True)
-            shutil.move('{}.tmp'.format(file_path), file_path)
-            print('Downloaded {} to {}'.format(url, file_path), flush=True)
+            shutil.move(f'{file_path}.tmp', file_path)
+            print(f'Downloaded {url} to {file_path}', flush=True)
 
     def load_stack_setup(self):
         d = yaml.load(
@@ -50,10 +53,9 @@ class StackageSession(object):
                     d['ghc'][platform][ver]['url'],
                     d['ghc'][platform][ver]['sha1'],
                 )
-                d['ghc'][platform][ver]['url'] = (
-                    '{}/ghc/{}'
-                    .format(MIRROR_BASE_URL, d['ghc'][platform][ver]['url'].split('/')[-1])
-                )
+                d['ghc'][platform][ver][
+                    'url'
+                ] = f"{MIRROR_BASE_URL}/ghc/{d['ghc'][platform][ver]['url'].split('/')[-1]}"
 
         if 'msys2' in d:
             if 'windows32' in d['msys2']:
@@ -86,10 +88,17 @@ class StackageSession(object):
             if (self._base_path / channel).is_dir():
                 args = ['git', '-C', self._base_path / channel, 'pull']
             else:
-                args = ['git', '-C', self._base_path, 'clone', '--depth', '1',
-                        'https://github.com/commercialhaskell/{}.git'.format(channel)]
+                args = [
+                    'git',
+                    '-C',
+                    self._base_path,
+                    'clone',
+                    '--depth',
+                    '1',
+                    f'https://github.com/commercialhaskell/{channel}.git',
+                ]
             subprocess.run(args, check=True)
-            print('Loaded {}'.format(channel), flush=True)
+            print(f'Loaded {channel}', flush=True)
 
         self.download(
             '',

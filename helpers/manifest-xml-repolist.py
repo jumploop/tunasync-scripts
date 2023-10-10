@@ -5,10 +5,8 @@ import xml.etree.ElementTree as ET
 
 def get_repolist(manifest_file: str, remotes: list):
     manifest = ET.parse(manifest_file)
-    default_remote = None
     default = manifest.find('default')
-    if default is not None:
-        default_remote = default.get('remote')
+    default_remote = default.get('remote') if default is not None else None
     for project in manifest.findall('project'):
         if project.get('remote', default=default_remote) in remotes:
             yield(project)

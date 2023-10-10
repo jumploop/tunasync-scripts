@@ -85,9 +85,8 @@ def download(url, dest):
                 )
                 if next_retry is None:
                     raise e
-                else:
-                    retry = next_retry
-                    logging.warn(f'Retrying download: {retry}')
+                retry = next_retry
+                logging.warn(f'Retrying download: {retry}')
 
     download_dest.rename(dest)
 
@@ -131,7 +130,7 @@ def clone_images():
                 download(url, chan_dir / file)
             except requests.HTTPError as e:
                 if e.response.status_code == 404:
-                    logging.info(f'    - 404, skipped')
+                    logging.info('    - 404, skipped')
                 else:
                     raise
 

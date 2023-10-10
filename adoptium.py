@@ -89,8 +89,7 @@ def download_release(ver: int, jvm_impl: str, alive_files: Set[str]):
 
 def delete_old_files(ver: int, alive_files: Set[str]):
     rel_path = Path(BASE_PATH) / str(ver)
-    on_disk = set([
-        str(i.relative_to(rel_path)) for i in rel_path.glob('**/*.*')])
+    on_disk = {str(i.relative_to(rel_path)) for i in rel_path.glob('**/*.*')}
     deleting = on_disk - alive_files
     # print(on_disk)
     # print(alive_files)

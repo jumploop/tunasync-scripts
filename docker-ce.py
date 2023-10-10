@@ -31,7 +31,7 @@ class RemoteSite:
 
     def __init__(self, base_url=BASE_URL):
         if not base_url.endswith('/'):
-            base_url = base_url + '/'
+            base_url = f'{base_url}/'
         self.base_url = base_url
         self.meta_urls = []
 
@@ -40,7 +40,7 @@ class RemoteSite:
         rpm_dists = ('fedora', 'centos')
 
         for dist in deb_dists:
-            if '/'+dist+'/' not in url:
+            if f'/{dist}/' not in url:
                 continue
             if '/Contents-' in url:
                 return True
@@ -50,7 +50,7 @@ class RemoteSite:
                 return True
 
         for dist in rpm_dists:
-            if '/'+dist+'/' not in url:
+            if f'/{dist}/' not in url:
                 continue
             if '/repodata/' in url:
                 return True
@@ -154,7 +154,7 @@ def downloading_worker(q):
 
 def create_workers(n):
     task_queue = queue.Queue()
-    for i in range(n):
+    for _ in range(n):
         t = threading.Thread(target=downloading_worker, args=(task_queue, ))
         t.start()
     return task_queue
@@ -168,13 +168,12 @@ def create_symlink(from_dir: Path, to_dir: Path):
                 print(f"WARN: The symlink {from_dir} dest changed from {resolved_symlink} to {to_dir}.")
         else:
             print(f"WARN: The symlink {from_dir} exists on disk but it is not a symlink.")
+    elif from_dir.is_symlink():
+        print(f"WARN: The symlink {from_dir} is probably invalid.")
     else:
-        if from_dir.is_symlink():
-            print(f"WARN: The symlink {from_dir} is probably invalid.")
-        else:
-            # create a symlink
-            from_dir.parent.mkdir(parents=True, exist_ok=True)
-            from_dir.symlink_to(to_dir)
+        # create a symlink
+        from_dir.parent.mkdir(parents=True, exist_ok=True)
+        from_dir.symlink_to(to_dir)
 
 def main():
     import argparse
@@ -215,14 +214,14 @@ def main():
     # block until all tasks are done
     task_queue.join()
     # stop workers
-    for i in range(args.workers):
+    for _ in range(args.workers):
         task_queue.put(None)
 
-    local_filelist = []
-    for local_file in working_dir.glob('**/*'):
-        if local_file.is_file():
-            local_filelist.append(local_file.relative_to(working_dir))
-
+    local_filelist = [
+        local_file.relative_to(working_dir)
+        for local_file in working_dir.glob('**/*')
+        if local_file.is_file()
+    ]
     for old_file in set(local_filelist) - set(remote_filelist):
         print("deleting", old_file, flush=True)
         old_file = working_dir / old_file

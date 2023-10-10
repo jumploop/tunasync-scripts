@@ -46,15 +46,14 @@ total_size = 0
 
 # wrap around requests.get to use token if available
 def github_get(*args, **kwargs):
-    headers = kwargs['headers'] if 'headers' in kwargs else {}
+    headers = kwargs.get('headers', {})
     if 'GITHUB_TOKEN' in os.environ:
-        headers['Authorization'] = 'token {}'.format(
-            os.environ['GITHUB_TOKEN'])
+        headers['Authorization'] = f"token {os.environ['GITHUB_TOKEN']}"
     kwargs['headers'] = headers
     return requests.get(*args, **kwargs)
 
 def github_tree(*args, **kwargs):
-    headers = kwargs['headers'] if 'headers' in kwargs else {}
+    headers = kwargs.get('headers', {})
     headers["Accept"] = "application/vnd.github.v3+json"
     kwargs['headers'] = headers
     return github_get(*args, **kwargs)
@@ -62,7 +61,7 @@ def github_tree(*args, **kwargs):
 # NOTE blob API supports file up to 100MB
 # To get larger one, we need raw.githubcontent, which is not implemented now
 def github_blob(*args, **kwargs):
-    headers = kwargs['headers'] if 'headers' in kwargs else {}
+    headers = kwargs.get('headers', {})
     headers["Accept"] = "application/vnd.github.v3.raw"
     kwargs['headers'] = headers
     return github_get(*args, **kwargs)
@@ -73,7 +72,7 @@ def do_download(remote_url: str, dst_file: Path, remote_size: int, sha: str, fil
         r.raise_for_status()
         tmp_dst_file = None
         try:
-            with tempfile.NamedTemporaryFile(prefix="." + dst_file.name + ".", suffix=".tmp", dir=dst_file.parent, delete=False) as f:
+            with tempfile.NamedTemporaryFile(prefix=f".{dst_file.name}.", suffix=".tmp", dir=dst_file.parent, delete=False) as f:
                 tmp_dst_file = Path(f.name)
                 for chunk in r.iter_content(chunk_size=1024**2):
                     if chunk:  # filter out keep-alive new chunks
@@ -104,7 +103,7 @@ def do_download(remote_url: str, dst_file: Path, remote_size: int, sha: str, fil
                 origin.unlink()
             dst_file.symlink_to(Path(".sha") / sha)
         finally:
-            if not tmp_dst_file is None:
+            if tmp_dst_file is not None:
                 if tmp_dst_file.is_file():
                     tmp_dst_file.unlink()
 
@@ -163,7 +162,7 @@ def downloading_worker(q):
 
 def create_workers(n):
     task_queue = queue.Queue()
-    for i in range(n):
+    for _ in range(n):
         t = threading.Thread(target=downloading_worker, args=(task_queue, ))
         t.start()
     return task_queue
@@ -195,7 +194,7 @@ def main():
     # block until all tasks are done
     task_queue.join()
     # stop workers
-    for i in range(args.workers):
+    for _ in range(args.workers):
         task_queue.put(None)
 
 if __name__ == "__main__":
