@@ -81,10 +81,10 @@ def file_sha256(dest):
     m = hashlib.sha256()
     with dest.open('rb') as f:
         while True:
-            buf = f.read(1*1024*1024)
-            if not buf:
+            if buf := f.read(1 * 1024 * 1024):
+                m.update(buf)
+            else:
                 break
-            m.update(buf)
     return m.hexdigest()
 
 def atomic_write_file(dest, contents):
@@ -148,7 +148,7 @@ def get_channels():
     ]
 
 def clone_channels():
-    logging.info(f'- Fetching channels')
+    logging.info('- Fetching channels')
 
     channels_to_update = []
 
@@ -186,7 +186,7 @@ def clone_channels():
 
         release_res = http_get(chan_location)
         if release_res.status_code == 404:
-            logging.warning(f'    - Not found')
+            logging.warning('    - Not found')
             continue
 
         release_res.raise_for_status()
@@ -207,7 +207,7 @@ def clone_channels():
         with (release_path / '.released-time').open('w') as f:
             f.write(released_time)
 
-        logging.info(f'    - Downloading files')
+        logging.info('    - Downloading files')
 
         has_hash_fail = False
 
@@ -225,7 +225,7 @@ def clone_channels():
                 logging.info(f'      - {file_name} (existing)')
             else:
                 if file_name == 'binary-cache-url':
-                    logging.info(f'      - binary-cache-url (redirected)')
+                    logging.info('      - binary-cache-url (redirected)')
                     dest = '.original-binary-cache-url'
                 else:
                     logging.info(f'      - {file_name}')
@@ -237,7 +237,7 @@ def clone_channels():
                     failure = True
 
                     has_hash_fail = True
-                    logging.error(f'        Wrong hash!')
+                    logging.error('        Wrong hash!')
                     logging.error(f'        - expected {file_hash}')
                     logging.error(f'        - got      {hash}')
 
@@ -252,7 +252,7 @@ def clone_channels():
                 chan_path_update.unlink()
             chan_path_update.symlink_to(release_target)
 
-            logging.info(f'    - Symlink updated')
+            logging.info('    - Symlink updated')
 
     return channels_to_update
 
@@ -260,7 +260,7 @@ def hash_part(path):
     return path.split('/')[-1].split('-', 1)[0]
 
 def update_channels(channels):
-    logging.info(f'- Updating binary cache')
+    logging.info('- Updating binary cache')
 
     has_cache_info = False
 
@@ -350,10 +350,10 @@ def update_channels(channels):
                     channel_failure = True
 
         if channel_failure:
-            logging.info(f'    - Finished with errors, not updating symlink')
+            logging.info('    - Finished with errors, not updating symlink')
         else:
             chan_path_update.rename(chan_path)
-            logging.info(f'    - Finished with success, symlink updated')
+            logging.info('    - Finished with success, symlink updated')
 
 def parse_narinfo(narinfo):
     res = {}
@@ -363,7 +363,7 @@ def parse_narinfo(narinfo):
     return res
 
 def garbage_collect():
-    logging.info(f'- Collecting garbage')
+    logging.info('- Collecting garbage')
 
     time_threshold = datetime.now() - timedelta(days=RETAIN_DAYS)
 

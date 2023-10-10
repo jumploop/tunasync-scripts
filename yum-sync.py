@@ -104,7 +104,10 @@ def download_repodata(url: str, path: Path) -> int:
     path.mkdir(exist_ok=True)
     oldfiles = set(path.glob('*.*'))
     newfiles = set()
-    if check_and_download(url + "/repodata/repomd.xml", path / ".repomd.xml") != 0:
+    if (
+        check_and_download(f"{url}/repodata/repomd.xml", path / ".repomd.xml")
+        != 0
+    ):
         print(f"Failed to download the repomd.xml of {url}")
         return 1
     try:
@@ -112,13 +115,13 @@ def download_repodata(url: str, path: Path) -> int:
         root = tree.getroot()
         assert root.tag.endswith('repomd')
         for location in root.findall('./{http://linux.duke.edu/metadata/repo}data/{http://linux.duke.edu/metadata/repo}location'):
-                href = location.attrib['href']
-                assert len(href) > 9 and href[:9] == 'repodata/'
-                fn = path / href[9:]
-                newfiles.add(fn)
-                if check_and_download(url + '/' + href, fn) != 0:
-                    print(f"Failed to download the {href}")
-                    return 1
+            href = location.attrib['href']
+            assert len(href) > 9 and href[:9] == 'repodata/'
+            fn = path / href[9:]
+            newfiles.add(fn)
+            if check_and_download(f'{url}/{href}', fn) != 0:
+                print(f"Failed to download the {href}")
+                return 1
     except BaseException as e:
         traceback.print_exc()
         return 1
@@ -214,7 +217,7 @@ enabled=1
         # sp.run(["cat", conf.name])
         # sp.run(["ls", "-la", cache_dir])
 
-        if len(dest_dirs) == 0:
+        if not dest_dirs:
             print("Nothing to sync", flush=True)
             failed.append(('', arch))
             continue
@@ -237,12 +240,12 @@ enabled=1
                 ret = sp.run(cmd_args)
             calc_repo_size(path)
 
-    if len(failed) > 0:
+    if failed:
         print("Failed YUM repos: ", failed)
     else:
         if len(REPO_SIZE_FILE) > 0:
             with open(REPO_SIZE_FILE, "a") as fd:
-                total_size = sum([r[0] for r in REPO_STAT.values()])
+                total_size = sum(r[0] for r in REPO_STAT.values())
                 fd.write(f"+{total_size}")
 
 if __name__ == "__main__":

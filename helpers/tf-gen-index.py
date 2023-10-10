@@ -62,13 +62,11 @@ def generate_fileindex(filelist):
     }
     versions = sorted(list(versions), key=lambda x: version(x), reverse=True)
 
-    index = {
+    return {
         'versions': versions,
         'pythons': pythons,
         'pkglist': pkglist,
     }
-
-    return index
 
 
 if __name__ == "__main__":

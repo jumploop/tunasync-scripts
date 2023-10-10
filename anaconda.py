@@ -94,20 +94,20 @@ def md5_check(file: Path, md5: str = None):
     m = hashlib.md5()
     with file.open('rb') as f:
         while True:
-            buf = f.read(1*1024*1024)
-            if not buf:
+            if buf := f.read(1 * 1024 * 1024):
+                m.update(buf)
+            else:
                 break
-            m.update(buf)
     return m.hexdigest() == md5
 
 def sha256_check(file: Path, sha256: str = None):
     m = hashlib.sha256()
     with file.open('rb') as f:
         while True:
-            buf = f.read(1*1024*1024)
-            if not buf:
+            if buf := f.read(1 * 1024 * 1024):
+                m.update(buf)
+            else:
                 break
-            m.update(buf)
     return m.hexdigest() == sha256
 
 
@@ -125,14 +125,14 @@ def curl_download(remote_url: str, dst_file: Path, sha256: str = None, md5: str 
 
 
 def sync_repo(repo_url: str, local_dir: Path, tmpdir: Path, delete: bool):
-    logging.info("Start syncing {}".format(repo_url))
+    logging.info(f"Start syncing {repo_url}")
     local_dir.mkdir(parents=True, exist_ok=True)
 
-    repodata_url = repo_url + '/repodata.json'
-    bz2_repodata_url = repo_url + '/repodata.json.bz2'
+    repodata_url = f'{repo_url}/repodata.json'
+    bz2_repodata_url = f'{repo_url}/repodata.json.bz2'
     # https://docs.conda.io/projects/conda-build/en/latest/release-notes.html
     # "current_repodata.json" - like repodata.json, but only has the newest version of each file
-    current_repodata_url = repo_url + '/current_repodata.json'
+    current_repodata_url = f'{repo_url}/current_repodata.json'
 
     tmp_repodata = tmpdir / "repodata.json"
     tmp_bz2_repodata = tmpdir / "repodata.json.bz2"
@@ -169,7 +169,7 @@ def sync_repo(repo_url: str, local_dir: Path, tmpdir: Path, delete: bool):
 
         pkg_url = '/'.join([repo_url, filename])
         dst_file = local_dir / filename
-        dst_file_wip = local_dir / ('.downloading.' + filename)
+        dst_file_wip = local_dir / f'.downloading.{filename}'
         remote_filelist.append(dst_file)
 
         if dst_file.is_file():
@@ -177,13 +177,13 @@ def sync_repo(repo_url: str, local_dir: Path, tmpdir: Path, delete: bool):
             local_filesize = stat.st_size
 
             if file_size == local_filesize:
-                logging.info("Skipping {}".format(filename))
+                logging.info(f"Skipping {filename}")
                 continue
 
             dst_file.unlink()
 
-        for retry in range(3):
-            logging.info("Downloading {}".format(filename))
+        for _ in range(3):
+            logging.info(f"Downloading {filename}")
             try:
                 err = curl_download(pkg_url, dst_file_wip, sha256=sha256, md5=md5)
                 if err is None:
@@ -192,11 +192,11 @@ def sync_repo(repo_url: str, local_dir: Path, tmpdir: Path, delete: bool):
                 err = 'CalledProcessError'
             if err is None:
                 break
-            logging.error("Failed to download {}: {}".format(filename, err))
+            logging.error(f"Failed to download {filename}: {err}")
 
     if os.path.getsize(tmp_repodata) > GEN_METADATA_JSON_GZIP_THRESHOLD:
         sp.check_call(["gzip", "--no-name", "--keep", "--", str(tmp_repodata)])
-        shutil.move(str(tmp_repodata) + ".gz", str(local_dir / "repodata.json.gz"))
+        shutil.move(f"{str(tmp_repodata)}.gz", str(local_dir / "repodata.json.gz"))
     else:
         # If the gzip file is not generated, remove the dangling gzip archive
         try:
@@ -211,7 +211,10 @@ def sync_repo(repo_url: str, local_dir: Path, tmpdir: Path, delete: bool):
     if tmp_current_repodata.is_file():
         if os.path.getsize(tmp_current_repodata) > GEN_METADATA_JSON_GZIP_THRESHOLD:
             sp.check_call(["gzip", "--no-name", "--keep", "--", str(tmp_current_repodata)])
-            shutil.move(str(tmp_current_repodata) + ".gz", str(local_dir / "current_repodata.json.gz"))
+            shutil.move(
+                f"{str(tmp_current_repodata)}.gz",
+                str(local_dir / "current_repodata.json.gz"),
+            )
             tmp_current_repodata_gz_gened = True
         shutil.move(str(tmp_current_repodata), str(
             local_dir / "current_repodata.json"))
@@ -224,20 +227,18 @@ def sync_repo(repo_url: str, local_dir: Path, tmpdir: Path, delete: bool):
                 raise
 
     if delete:
-        local_filelist = []
         delete_count = 0
-        for i in local_dir.glob('*.tar.bz2'):
-            local_filelist.append(i)
-        for i in local_dir.glob('*.conda'):
-            local_filelist.append(i)
+        local_filelist = list(local_dir.glob('*.tar.bz2'))
+        local_filelist.extend(iter(local_dir.glob('*.conda')))
         for i in set(local_filelist) - set(remote_filelist):
-            logging.info("Deleting {}".format(i))
+            logging.info(f"Deleting {i}")
             i.unlink()
             delete_count += 1
-        logging.info("{} files deleted".format(delete_count))
+        logging.info(f"{delete_count} files deleted")
 
-    logging.info("{}: {} files, {} in total".format(
-        repodata_url, len(remote_filelist), sizeof_fmt(total_size)))
+    logging.info(
+        f"{repodata_url}: {len(remote_filelist)} files, {sizeof_fmt(total_size)} in total"
+    )
     return total_size
 
 def sync_installer(repo_url, local_dir: Path):
@@ -261,7 +262,7 @@ def sync_installer(repo_url, local_dir: Path):
     for filename, sha256 in remote_list():
         pkg_url = "/".join([repo_url, filename])
         dst_file = local_dir / filename
-        dst_file_wip = local_dir / ('.downloading.' + filename)
+        dst_file_wip = local_dir / f'.downloading.{filename}'
 
         if dst_file.is_file():
             r = requests.head(pkg_url, allow_redirects=True, timeout=TIMEOUT_OPTION)
@@ -318,18 +319,18 @@ def main():
 
     logging.info("Syncing installers...")
     for dist in ("archive", "miniconda"):
-        remote_url = "{}/{}".format(CONDA_REPO_BASE_URL, dist)
+        remote_url = f"{CONDA_REPO_BASE_URL}/{dist}"
         local_dir = working_dir / dist
         try:
             sync_installer(remote_url, local_dir)
             size_statistics += sum(
                 f.stat().st_size for f in local_dir.glob('*') if f.is_file())
         except Exception:
-            logging.exception("Failed to sync installers of {}".format(dist))
+            logging.exception(f"Failed to sync installers of {dist}")
 
     for repo in CONDA_REPOS:
         for arch in CONDA_ARCHES:
-            remote_url = "{}/pkgs/{}/{}".format(CONDA_REPO_BASE_URL, repo, arch)
+            remote_url = f"{CONDA_REPO_BASE_URL}/pkgs/{repo}/{arch}"
             local_dir = working_dir / "pkgs" / repo / arch
 
             tmpdir = tempfile.mkdtemp()
@@ -337,12 +338,12 @@ def main():
                 size_statistics += sync_repo(remote_url,
                                              local_dir, Path(tmpdir), args.delete)
             except Exception:
-                logging.exception("Failed to sync repo: {}/{}".format(repo, arch))
+                logging.exception(f"Failed to sync repo: {repo}/{arch}")
             finally:
                 shutil.rmtree(tmpdir)
 
     for repo in CONDA_CLOUD_REPOS:
-        remote_url = "{}/{}".format(CONDA_CLOUD_BASE_URL, repo)
+        remote_url = f"{CONDA_CLOUD_BASE_URL}/{repo}"
         local_dir = working_dir / "cloud" / repo
 
         tmpdir = tempfile.mkdtemp()
@@ -350,7 +351,7 @@ def main():
             size_statistics += sync_repo(remote_url,
                                          local_dir, Path(tmpdir), args.delete)
         except Exception:
-            logging.exception("Failed to sync repo: {}".format(repo))
+            logging.exception(f"Failed to sync repo: {repo}")
         finally:
             shutil.rmtree(tmpdir)
 

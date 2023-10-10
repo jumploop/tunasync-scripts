@@ -22,9 +22,9 @@ def get_filelist(xmlstring):
 
 if __name__ == "__main__":
     import fileinput
-    xmlstring = '\n'.join([line for line in fileinput.input()])
+    xmlstring = '\n'.join(list(fileinput.input()))
     filelist = get_filelist(xmlstring)
     for fname, size in filelist:
-        print("{}\t{}".format(fname, size))
+        print(f"{fname}\t{size}")
 
 # vim: ts=4 sw=4 sts=4 expandtab

@@ -20,8 +20,7 @@ github_api_headers = {
 }
 
 if 'GITHUB_TOKEN' in os.environ:
-    github_api_headers['Authorization'] = 'token {}'.format(
-        os.environ['GITHUB_TOKEN'])
+    github_api_headers['Authorization'] = f"token {os.environ['GITHUB_TOKEN']}"
 else:
     # https://github.com/actions/upload-artifact/issues/51
     # the token should have 'public_repo' access
@@ -31,11 +30,14 @@ def formulae_github_pages(zip_file: Path, unzip_directory: Path, tar_directory: 
     artifacts = requests.get(FORMULAE_BREW_SH_GITHUB_ACTIONS_ARTIFACT_API, headers=github_api_headers)
     artifacts.raise_for_status()
     artifacts = artifacts.json()
-    latest = None
-    for artifact in artifacts["artifacts"]:
-        if artifact["workflow_run"]["head_branch"] == "master":
-            latest = artifact
-            break
+    latest = next(
+        (
+            artifact
+            for artifact in artifacts["artifacts"]
+            if artifact["workflow_run"]["head_branch"] == "master"
+        ),
+        None,
+    )
     zip_url = latest["archive_download_url"]
 
     check_and_download(zip_url, zip_file, zip_file, github_api_headers)

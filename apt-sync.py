@@ -47,10 +47,11 @@ def check_args(prop: str, lst: List[str]):
 def replace_os_template(os_list: List[str]) -> List[str]:
     ret = []
     for i in os_list:
-        matched = pattern_os_template.search(i)
-        if matched:
-            for os in OS_TEMPLATE[matched.group(1)]:
-                ret.append(pattern_os_template.sub(os, i))
+        if matched := pattern_os_template.search(i):
+            ret.extend(
+                pattern_os_template.sub(os, i)
+                for os in OS_TEMPLATE[matched.group(1)]
+            )
         elif i.startswith('@'):
             ret.extend(OS_TEMPLATE[i[1:]])
         else:
@@ -113,7 +114,7 @@ def move_files_in(src: Path, dst: Path):
     if empty:
         print(f"{src} is empty")
 
-def apt_mirror(base_url: str, dist: str, repo: str, arch: str, dest_base_dir: Path, deb_set: Dict[str, int])->int:
+def apt_mirror(base_url: str, dist: str, repo: str, arch: str, dest_base_dir: Path, deb_set: Dict[str, int]) -> int:
     if not dest_base_dir.is_dir():
         print("Destination directory is empty, cannot continue")
         return 1
@@ -213,6 +214,7 @@ def apt_mirror(base_url: str, dist: str, repo: str, arch: str, dest_base_dir: Pa
         except:
             traceback.print_exc()
             return 1
+
     if arch in ARCH_NO_PKGIDX:
         if collect_tmp_dir() == 1:
             return 1
@@ -221,7 +223,7 @@ def apt_mirror(base_url: str, dist: str, repo: str, arch: str, dest_base_dir: Pa
 
     if pkgidx_content is None:
         print("index is empty, failed")
-        if len(list(pkgidx_dir.glob('Packages*'))) == 0:
+        if not list(pkgidx_dir.glob('Packages*')):
             print(f"{pkgidx_dir/'Packages'} never existed, upstream may not provide {dist}/{repo}/{arch}, ignore this error")
             return 0
         return 1
@@ -256,7 +258,7 @@ def apt_mirror(base_url: str, dist: str, repo: str, arch: str, dest_base_dir: Pa
             continue
 
         pkg_url=f"{base_url}/{pkg_filename}"
-        dest_tmp_filename = dest_filename.with_name('._syncing_.' + dest_filename.name)
+        dest_tmp_filename = dest_filename.with_name(f'._syncing_.{dest_filename.name}')
         for retry in range(MAX_RETRY):
             print(f"downloading {pkg_url} to {dest_filename}", flush=True)
             # break # dry run
@@ -284,8 +286,10 @@ def apt_mirror(base_url: str, dist: str, repo: str, arch: str, dest_base_dir: Pa
     return err
 
 def apt_delete_old_debs(dest_base_dir: Path, remote_set: Dict[str, int], dry_run: bool):
-    on_disk = set([
-        str(i.relative_to(dest_base_dir)) for i in dest_base_dir.glob('**/*.deb')])
+    on_disk = {
+        str(i.relative_to(dest_base_dir))
+        for i in dest_base_dir.glob('**/*.deb')
+    }
     deleting = on_disk - remote_set.keys()
     # print(on_disk)
     # print(remote_set)
@@ -326,10 +330,20 @@ def main():
 
     for os in os_list:
         for comp in component_list:
-            for arch in arch_list:
-                if apt_mirror(args.base_url, os, comp, arch, args.working_dir, deb_set=deb_set) != 0:
-                    failed.append((os, comp, arch))
-    if len(failed) > 0:
+            failed.extend(
+                (os, comp, arch)
+                for arch in arch_list
+                if apt_mirror(
+                    args.base_url,
+                    os,
+                    comp,
+                    arch,
+                    args.working_dir,
+                    deb_set=deb_set,
+                )
+                != 0
+            )
+    if failed:
         print(f"Failed APT repos of {args.base_url}: ", failed)
         return
     if args.delete or args.delete_dry_run:
